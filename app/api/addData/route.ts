@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { Pinecone } from "@pinecone-database/pinecone";
 import {OpenAIEmbeddings} from "@langchain/openai";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
-import { PineconeStore} from "@lanchain/pinecone";
+import { PineconeStore} from "@langchain/pinecone";
+import { Pinecone as PineconeClient} from "@pinecone-database/pinecone";
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -29,16 +30,21 @@ export async function POST(req: NextRequest) {
             chunkOverlap: 200,
         });
         const texts = await splitter.splitDocuments(docs);
-    } catch (error) {
-        console.log('Error processing PDF:', error);
-    }
+        const pinecone = new Pinecone();
 
-    const pinecone = new Pinecone();
+        const pineconeIndex = pinecone.Index(process.env.PINECONE_INDEX_NAME as string);
 
-    const pineconeIndex = pinecone.Index(process.env.PINECONE_INDEX_NAME as string);
+        await PineconeStore.fromDocuments(texts, new OpenAIEmbeddings({
+            openAIApiKey: process.env.OPENAI_KEY as string
+        }), {
+            pineconeIndex,
+        });
+        } catch (error) {
+            console.log('Error processing PDF:', error);
+        }
 
-
+        
+        return NextResponse.json({success: true});
     
-
 }
 
